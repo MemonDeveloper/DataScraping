@@ -82,7 +82,7 @@ Before running this application, ensure you have the following installed:
 
 3.  **Interact with the GUI**:
 
-      * A simple Tkinter window titled "Quick Analytics v.1.1" will appear.
+      * A simple Tkinter window titled "Memon v.1.1" will appear.
       * Click the **"bahsegel1200"** button to start the process.
       * The text area in the GUI will display real-time updates on the script's progress.
       * Once completed, a message box will confirm the process is finished, and the results will be saved.
