@@ -363,7 +363,7 @@ def center_window(window, width, height):
     window.geometry(f'{width}x{height}+{position_right}+{position_top}')
 
 root = tk.Tk()
-root.title("Quick Analytics v.1.1")
+root.title("Memon v.1.1")
 root.geometry("500x400")
 root.resizable(False, False)
 center_window(root, 500, 400)
