@@ -40,8 +40,8 @@ Before running this application, ensure you have the following installed:
 1.  **Clone the repository** (or download the `main.py` file directly):
 
     ```bash
-    git clone https://github.com/MemonDeveloper/lowes-Data-Extractor.git
-    cd lowes-Data-Extractor
+    git clone https://github.com/MemonDeveloper/lowes.com.git
+    cd lowes.com
     ```
 
 2.  **Create a `requirements.txt` file**: In the root directory of your project, create a file named `requirements.txt` and paste the following content:
