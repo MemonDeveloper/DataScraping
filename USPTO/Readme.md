@@ -1,7 +1,3 @@
-Of course\! Here is a comprehensive `README.md` file for your Python script, suitable for a GitHub repository. It explains the purpose, functionality, and usage of the code in a clear and structured manner.
-
------
-
 # USPTO Patent Scraper
 
 This Python script automates the process of searching and retrieving patent data from the official USPTO Public Patent Search website. It performs multi-faceted queries, collects unique patent document IDs, and then fetches detailed information for each patent, such as its title, abstract, filing date, and inventors.
