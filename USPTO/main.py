@@ -1,12 +1,14 @@
 import requests
 import time
 import re
+import os
 from bs4 import BeautifulSoup
 from docx import Document
 from docx.shared import Inches, Pt
 from fpdf import FPDF
 from datetime import datetime
-import os
+from pydrive.auth import GoogleAuth
+from pydrive.drive import GoogleDrive
 
 # Define folder name
 output_folder = "OCX_InfoSyncEngine"
@@ -221,7 +223,41 @@ unique_ids = sorted(all_ids)
 # Output result
 print(f"\n✅ Total unique document IDs: {len(unique_ids)}")
 
-# --- STEP 2: Define function to fetch patent details ---
+# --- Clean HTML content ---
+def clean_html(text):
+    if not text:
+        return None
+    soup = BeautifulSoup(text, "html.parser")
+
+    # Replace all <br> or <br/> tags with newlines
+    for br in soup.find_all("br"):
+        br.replace_with("\n")
+
+    # Keep other tags (like <b>, <i>) intact — just get text
+    return soup.get_text().strip()
+
+# --- Flatten JSON ignoring nulls ---
+def flatten_json(y, parent_key='', sep='.'):
+    items = []
+    for k, v in y.items():
+        if v is None:
+            continue
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_json(v, new_key, sep=sep).items())
+        elif isinstance(v, list):
+            if all(isinstance(i, dict) for i in v):
+                for idx, item in enumerate(v):
+                    items.extend(flatten_json(item, f"{new_key}[{idx}]", sep=sep).items())
+            else:
+                cleaned_list = [str(i) for i in v if i is not None]
+                if cleaned_list:
+                    items.append((new_key, ', '.join(cleaned_list)))
+        else:
+            items.append((new_key, v))
+    return dict(items)
+
+# --- Fetch patent details ---
 def fetch_patent_details(doc_id, doc_type):
     global success_count, fail_count
     detail_url = f"https://ppubs.uspto.gov/api/patents/highlight/{doc_id}"
@@ -231,7 +267,6 @@ def fetch_patent_details(doc_id, doc_type):
         'includeSections': 'true',
         'uniqueId': ''
     }
-
     try:
         response = requests.get(detail_url, params=params, cookies=cookies, headers=headers)
         if response.status_code == 200:
@@ -242,137 +277,139 @@ def fetch_patent_details(doc_id, doc_type):
         print(f"❌ Exception occurred: {e}")
         return None
 
-# Step 3: Create PDF and DOCX reports
-timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-pdf_filename = f"patent_details_{timestamp}.pdf"
-docx_filename = f"patent_details_{timestamp}.docx"
-
+# --- Init PDF & DOCX ---
 pdf = FPDF()
 pdf.set_auto_page_break(auto=True, margin=15)
-pdf.add_page()
+pdf.add_font('ArialUnicode', '', 'ArialUnicodeMS.ttf', uni=True)
+pdf.set_font('ArialUnicode', '', 10)
 
 doc = Document()
 doc.add_heading('Patent Details Report', 0)
 
-# Function to generate PDF and add to DOCX
-def add_patent_to_documents(patent_data):
-    patent_number = patent_data.get("documentId", "")
-    app_number = patent_data.get("applicationNumber", "N/A")
-    title = patent_data.get("inventionTitle", "N/A")
-    abstract = patent_data.get("abstractHtml", "").replace("<br />", "").strip()
-    filing_date = patent_data.get("applicationFilingDate", ["N/A"])[0][:10]
-    inventor_names = "; ".join(patent_data.get("inventorsName", [])) or "N/A"
-
-    raw_claims = patent_data.get("claimsHtml", "")
-    if raw_claims:
-        soup = BeautifulSoup(raw_claims, "html.parser")
-        text = soup.get_text(separator="\n")
-        claims_text = re.sub(r'\n+', '\n', text).strip()
-    else:
-        claims_text = "N/A"
-
-    # --- Create individual PDF ---
-    try:
-        pdf = FPDF()
-        pdf.set_auto_page_break(auto=True, margin=15)
-        pdf.add_page()
-
-        # Add and use Unicode font
-        pdf.add_font('ArialUnicode', '', 'ArialUnicodeMS.ttf', uni=True)
-        pdf.set_font('ArialUnicode', '', 16)
-
-        # Header (Patent Number)
-        pdf.set_text_color(0)
-        pdf.cell(0, 10, f"Patent Number: {patent_number}", ln=True)
-
-        # Body font (normal size)
-        pdf.set_font('ArialUnicode', '', 10)
-
-        # Main content
-        pdf.multi_cell(0, 6, f"""Application No.: {app_number}
-Filing Date: {filing_date}
-Inventors: {inventor_names}
-
-Abstract: {abstract}
-
-Claims:
-{claims_text}
-""")
-
-        # Summary placeholder
-        pdf.multi_cell(0, 6, "\nSummary:\nGemini Summary Placeholder")
-
-        # Save with safe filename
-        safe_filename = patent_number.replace("/", "-").replace(":", "-").replace(" ", "-")
-        pdf.output(os.path.join(output_folder, f"OCX_InfoSyncEngine_{safe_filename}.pdf"))
-    except Exception as e:
-        print(f"❌ PDF generation failed for {patent_number}: {e}")
-
-    # --- Create individual DOCX ---
-    try:
-        doc = Document()
-        doc.add_heading(title, level=1)
-
-        info_items = [
-            ("Patent Number:", patent_number),
-            ("Application No.:", app_number),
-            ("Filing Date:", filing_date),
-            ("Inventors:", inventor_names),
-            ("Abstract:", abstract),
-            ("Claims:", claims_text)
-        ]
-
-        for label, value in info_items:
-            paragraph = doc.add_paragraph()
-            
-            run_label = paragraph.add_run(f"{label} ")
-            run_label.bold = True
-            run_label.font.size = Pt(16)
-
-            run_value = paragraph.add_run(f"{value}")
-            run_value.bold = False
-            run_value.font.size = Pt(16)
-
-            # Add spacing after Abstract and Claims
-            if label in ["Abstract:", "Claims:"]:
-                doc.add_paragraph("")  # Add blank line
-
-        # Add Summary section
-        summary_para = doc.add_paragraph()
-        summary_title = summary_para.add_run("Summary:\n")
-        summary_title.bold = True
-        summary_title.font.size = Pt(16)
-
-        summary_body = summary_para.add_run("Gemini Summary Placeholder")
-        summary_body.font.size = Pt(16)
-
-        # Add horizontal separator
-        doc.add_paragraph("-" * 100)
-
-        # Save file
-        safe_filename = patent_number.replace("/", "-").replace(":", "-").replace(" ", "-")
-        doc.save(os.path.join(output_folder, f"OCX_InfoSyncEngine_{safe_filename}.docx"))
-
-    except Exception as e:
-        print(f"❌ DOCX generation failed for {patent_number}: {e}")
-
-# Process all patents
 success_count = 0
 fail_count = 0
 
-for i, (doc_id, doc_type) in enumerate(doc_type_pairs, start=1):
+for i, (doc_id, doc_type) in enumerate(doc_type_pairs[:5], start=1):
     result = fetch_patent_details(doc_id, doc_type)
-    if result:
-        success_count += 1
-        add_patent_to_documents(result)
-        print(f"✅ Success #{success_count}: {doc_id} ({doc_type})")
-    else:
+    if not result:
         fail_count += 1
         print(f"❌ Failed #{fail_count}: {doc_id} ({doc_type})")
+        continue
+
+    # Clean known HTML fields before flattening
+    for html_key in ["abstractHtml", "descriptionHtml", "claimsHtml", "backgroundTextHtml"]:
+        if html_key in result:
+            result[html_key] = clean_html(result[html_key])
+
+    flat_data = flatten_json(result)
+    success_count += 1
+    patent_number = flat_data.get("documentId", "")
+    title = flat_data.get("inventionTitle", "Patent Details")
+
+    # --- PDF Output ---
+    try:
+        pdf.add_page()
+        pdf.set_font('ArialUnicode', '', 12)
+        pdf.cell(0, 10, f"Patent Number: {patent_number}", ln=True)
+        pdf.set_font('ArialUnicode', '', 10)
+        for k, v in flat_data.items():
+            pdf.multi_cell(0, 6, f"{k}: {v}")
+        pdf.multi_cell(0, 6, "-" * 100)
+    except Exception as e:
+        print(f"❌ PDF generation failed for {doc_id}: {e}")
+
+    # --- DOCX Output ---
+    try:
+        doc.add_heading(title, level=1)
+        for k, v in flat_data.items():
+            paragraph = doc.add_paragraph()
+            run_label = paragraph.add_run(f"{k}: ")
+            run_label.bold = True
+            run_label.font.size = Pt(12)
+            run_value = paragraph.add_run(str(v))
+            run_value.font.size = Pt(12)
+        doc.add_paragraph("-" * 100)
+    except Exception as e:
+        print(f"❌ DOCX generation failed for {doc_id}: {e}")
+
+    print(f"✅ Success #{success_count}: {doc_id} ({doc_type})")
     time.sleep(1)
 
-# Summary
+# --- Save files ---
+timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+output_folder = "OCX_InfoSyncEngine"
+os.makedirs(output_folder, exist_ok=True)
+
+pdf_path = os.path.join(output_folder, f"OCX_InfoSyncEngine_{timestamp}.pdf")
+docx_path = os.path.join(output_folder, f"OCX_InfoSyncEngine_{timestamp}.docx")
+
+pdf.output(pdf_path)
+doc.save(docx_path)
+
 print("\n📊 Fetch Summary:")
 print(f"✅ Total Success: {success_count}")
 print(f"❌ Total Failed : {fail_count}")
-print(f"📄 Combined DOCX saved as: {docx_filename}")
+print(f"\n✅ Combined PDF saved as: {pdf_path}")
+print(f"✅ Combined DOCX saved as: {docx_path}")
+
+# --- Google Drive Upload Setup ---
+# gauth = GoogleAuth()
+# gauth.LoadCredentialsFile("credentials.json")
+
+# if gauth.credentials is None:
+#     # First time authorization
+#     gauth.LocalWebserverAuth()
+# elif gauth.access_token_expired:
+#     # Refresh token if expired
+#     gauth.Refresh()
+# else:
+#     # Already authorized
+#     gauth.Authorize()
+
+# # Save credentials for future runs
+# gauth.SaveCredentialsFile("credentials.json")
+
+# # Create Drive instance AFTER authentication
+# drive = GoogleDrive(gauth)
+
+# # --- Step 1: Check if folder already exists ---
+# folder_name = "OCX_InfoSyncEngine"
+# folder_id = None
+
+# print(f"🔍 Searching for folder: {folder_name}")
+
+# file_list = drive.ListFile({
+#     'q': f"title='{folder_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
+# }).GetList()
+
+# if file_list:
+#     folder_id = file_list[0]['id']
+#     print(f"📂 Folder already exists: {folder_name} (ID: {folder_id})")
+# else:
+#     # --- Step 2: Create folder ---
+#     print(f"📁 Creating folder: {folder_name}")
+#     folder_metadata = {
+#         'title': folder_name,
+#         'mimeType': 'application/vnd.google-apps.folder'
+#     }
+#     folder = drive.CreateFile(folder_metadata)
+#     folder.Upload()
+#     folder_id = folder['id']
+#     print(f"✅ Folder created with ID: {folder_id}")
+
+# # --- Step 3: Upload files into the folder ---
+# print(f"🚀 Uploading files to folder: {folder_name}")
+
+# for filename in os.listdir(output_folder):
+#     filepath = os.path.join(output_folder, filename)
+#     if os.path.isfile(filepath):
+#         try:
+#             file_drive = drive.CreateFile({
+#                 'title': filename,
+#                 'parents': [{'id': folder_id}]
+#             })
+#             file_drive.SetContentFile(filepath)
+#             file_drive.Upload()
+#             print(f"✅ Uploaded: {filename}")
+#         except Exception as e:
+#             print(f"❌ Failed to upload {filename}: {e}")
