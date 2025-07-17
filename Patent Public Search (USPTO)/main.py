@@ -2,37 +2,47 @@ import requests
 import time
 import re
 import os
+import google.generativeai as genai
 from bs4 import BeautifulSoup
 from docx import Document
-from docx.shared import Inches, Pt
-from fpdf import FPDF
+from docx.shared import Pt
 from datetime import datetime
-from pydrive.auth import GoogleAuth
-from pydrive.drive import GoogleDrive
+from docx2pdf import convert
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
+
+# Replace with your actual API key
+GEMINI_API_KEY = "AIzaSyDkcuEXZczdLZf-Njvxa_7IJ4GBdXb_E5Y"  
+# Configure API
+genai.configure(api_key=GEMINI_API_KEY)
+# Setup model
+model = genai.GenerativeModel("models/gemini-2.0-flash")
 
 # Define folder name
 output_folder = "OCX_InfoSyncEngine"
-
 # Create folder if it doesn't exist
 os.makedirs(output_folder, exist_ok=True)
 
 cookies = {
     '_ga': 'GA1.1.1490333756.1752502650',
     'QSI_SI_7WgrKZZwMjtuFh4_intercept': 'true',
-    '_ga_CD30TTEK1F': 'GS2.1.s1752514458$o5$g0$t1752514458$j60$l0$h0',
     '_ga_Q5HVZK168H': 'GS2.1.s1752514811$o2$g1$t1752514900$j57$l0$h0',
     'aws-waf-token': '7410d63c-cc22-4642-8563-e0d0e2738959:BQoAqEqAINsuAAAA:7Z5tX16/G0wRLhrROmSckRcxC7xyYlasiJmgOc8vzsRqlkogqBY9Dcd/2m+45PHfz9NnhF41Lir5I4nj2s7ncPvwoxl5oISwygfFiuo7r1M3ro6GBbF7gDfWFgMYkeUv5u52IaPjpIdKufwNtFIZNUNsdMQWPRNPVdKyDEl53nnUvc5ARKm7ecyt+wuvskZuIi+iAGFp55UzcCXOq54m+OAysNyRjRhz1vJscSuWp/00mpZ4GHRA2pjEBhU12jQo',
     '_ga_M4L1KRPWXE': 'GS2.1.s1752517472$o1$g1$t1752517489$j43$l0$h0',
     '_ga_1KBHG37G8W': 'GS2.1.s1752514821$o3$g1$t1752517490$j60$l0$h0',
-    '_ga_F4Q7EX1K95': 'GS2.1.s1752595279$o6$g1$t1752595298$j41$l0$h0',
-    '_ga_CSLL4ZEK4L': 'GS2.1.s1752595279$o6$g1$t1752595298$j41$l0$h0',
+    '_ga_CD30TTEK1F': 'GS2.1.s1752600612$o6$g0$t1752600612$j60$l0$h0',
+    '_ga_F4Q7EX1K95': 'GS2.1.s1752759228$o9$g1$t1752759254$j34$l0$h0',
+    '_ga_CSLL4ZEK4L': 'GS2.1.s1752759229$o9$g1$t1752759255$j34$l0$h0',
 }
 
 headers = {
     'accept': '*/*',
     'accept-language': 'en-US,en;q=0.9',
+    'cache-control': 'no-cache',
     'content-type': 'application/json; charset=UTF-8',
     'origin': 'https://ppubs.uspto.gov',
+    'pragma': 'no-cache',
     'priority': 'u=1, i',
     'referer': 'https://ppubs.uspto.gov/pubwebapp/',
     'sec-ch-ua': '"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"',
@@ -42,9 +52,9 @@ headers = {
     'sec-fetch-mode': 'cors',
     'sec-fetch-site': 'same-origin',
     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
-    'x-access-token': 'eyJzdWIiOiJlODFlMzA1YS0xNjJiLTQ5NWUtOWRkZC05MjNiNzI0YmM1MmIiLCJ2ZXIiOiJhNWI2M2JjZS00MzFhLTRlODItYWFhOC00YmE5NzFmMjQwYmQiLCJleHAiOjB9',
+    'x-access-token': 'eyJzdWIiOiI2OTQ5MjExNy1kMDRmLTRjMjEtYTdkYS1kMTU5M2JhZmM1MzUiLCJ2ZXIiOiI1ZDUzNjk1Mi1lYTU5LTRlZTMtYjVkOC0zNmQyNjQ0MGRkMzAiLCJleHAiOjB9',
     'x-requested-with': 'XMLHttpRequest',
-    # 'cookie': '_ga=GA1.1.1490333756.1752502650; QSI_SI_7WgrKZZwMjtuFh4_intercept=true; _ga_CD30TTEK1F=GS2.1.s1752514458$o5$g0$t1752514458$j60$l0$h0; _ga_Q5HVZK168H=GS2.1.s1752514811$o2$g1$t1752514900$j57$l0$h0; aws-waf-token=7410d63c-cc22-4642-8563-e0d0e2738959:BQoAqEqAINsuAAAA:7Z5tX16/G0wRLhrROmSckRcxC7xyYlasiJmgOc8vzsRqlkogqBY9Dcd/2m+45PHfz9NnhF41Lir5I4nj2s7ncPvwoxl5oISwygfFiuo7r1M3ro6GBbF7gDfWFgMYkeUv5u52IaPjpIdKufwNtFIZNUNsdMQWPRNPVdKyDEl53nnUvc5ARKm7ecyt+wuvskZuIi+iAGFp55UzcCXOq54m+OAysNyRjRhz1vJscSuWp/00mpZ4GHRA2pjEBhU12jQo; _ga_M4L1KRPWXE=GS2.1.s1752517472$o1$g1$t1752517489$j43$l0$h0; _ga_1KBHG37G8W=GS2.1.s1752514821$o3$g1$t1752517490$j60$l0$h0; _ga_F4Q7EX1K95=GS2.1.s1752595279$o6$g1$t1752595298$j41$l0$h0; _ga_CSLL4ZEK4L=GS2.1.s1752595279$o6$g1$t1752595298$j41$l0$h0',
+    # 'cookie': '_ga=GA1.1.1490333756.1752502650; QSI_SI_7WgrKZZwMjtuFh4_intercept=true; _ga_Q5HVZK168H=GS2.1.s1752514811$o2$g1$t1752514900$j57$l0$h0; aws-waf-token=7410d63c-cc22-4642-8563-e0d0e2738959:BQoAqEqAINsuAAAA:7Z5tX16/G0wRLhrROmSckRcxC7xyYlasiJmgOc8vzsRqlkogqBY9Dcd/2m+45PHfz9NnhF41Lir5I4nj2s7ncPvwoxl5oISwygfFiuo7r1M3ro6GBbF7gDfWFgMYkeUv5u52IaPjpIdKufwNtFIZNUNsdMQWPRNPVdKyDEl53nnUvc5ARKm7ecyt+wuvskZuIi+iAGFp55UzcCXOq54m+OAysNyRjRhz1vJscSuWp/00mpZ4GHRA2pjEBhU12jQo; _ga_M4L1KRPWXE=GS2.1.s1752517472$o1$g1$t1752517489$j43$l0$h0; _ga_1KBHG37G8W=GS2.1.s1752514821$o3$g1$t1752517490$j60$l0$h0; _ga_CD30TTEK1F=GS2.1.s1752600612$o6$g0$t1752600612$j60$l0$h0; _ga_F4Q7EX1K95=GS2.1.s1752759228$o9$g1$t1752759254$j34$l0$h0; _ga_CSLL4ZEK4L=GS2.1.s1752759229$o9$g1$t1752759255$j34$l0$h0',
 }
 
 json_data1 = {
@@ -63,7 +73,7 @@ json_data1 = {
     'query': {
         'anchorDocIds': None,
         'querySource': 'brs',
-        'caseId': 93845335,
+        'caseId': 94259020,
         'hl_snippets': '2',
         'op': 'OR',
         'q': 'TTL ("system") AND ABST("data optimization" OR "information filtering")',
@@ -110,7 +120,7 @@ json_data2 = {
     'query': {
         'anchorDocIds': None,
         'querySource': 'brs',
-        'caseId': 93845335,
+        'caseId': 94259020,
         'hl_snippets': '2',
         'op': 'OR',
         'q': 'TTL ("platform") AND ABST("interactive engine" OR "multi-layer")',
@@ -157,7 +167,7 @@ json_data3 = {
     'query': {
         'anchorDocIds': None,
         'querySource': 'brs',
-        'caseId': 93845335,
+        'caseId': 94259020,
         'hl_snippets': '2',
         'op': 'OR',
         'q': 'TTL("module") AND ABST("coordination protocol") AND ABST("logic management")',
@@ -188,14 +198,18 @@ json_data3 = {
     },
 }
 
-# JSON queries (already defined)
-all_json_queries = [json_data1, json_data2, json_data3]
+# JSON queries with their names
+all_json_queries = [
+    (json_data1, json_data1['query']['queryName']),
+    (json_data2, json_data2['query']['queryName']),
+    (json_data3, json_data3['query']['queryName'])
+]
 
 all_ids = set()          # ensures uniqueness
-doc_type_pairs = []      # stores (documentId, type)
+doc_type_pairs = []      # stores (documentId, type, query_name)
 
 # STEP 1: Fetch documentId and type
-for idx, json_data in enumerate(all_json_queries, start=1):
+for idx, (json_data, query_name) in enumerate(all_json_queries, start=1):
     print(f"🔍 Sending query {idx}...")
     response = requests.post("https://ppubs.uspto.gov/api/searches/searchWithBeFamily", json=json_data, headers=headers, cookies=cookies)
 
@@ -208,7 +222,7 @@ for idx, json_data in enumerate(all_json_queries, start=1):
             if 'documentId' in doc and 'type' in doc:
                 doc_id = doc['documentId'].replace(" ", "-")
                 doc_type = doc['type']
-                doc_type_pairs.append((doc_id, doc_type))
+                doc_type_pairs.append((doc_id, doc_type, query_name))
                 doc_ids_this_round.append(doc_id)
         
         # Use top 100 document IDs from current result
@@ -217,24 +231,93 @@ for idx, json_data in enumerate(all_json_queries, start=1):
     else:
         print(f"❌ Query {idx} failed: {response.status_code} - {response.text}")
 
-# Convert to sorted list
+# STEP 2: Convert to sorted list of unique IDs
 unique_ids = sorted(all_ids)
+# STEP 3: Sort doc_type_pairs based on query_name order
+query_order = {query_name: i for i, (_, query_name) in enumerate(all_json_queries)}
+doc_type_pairs = sorted(doc_type_pairs, key=lambda x: query_order.get(x[2], float('inf')))
 
-# Output result
+# Output results
 print(f"\n✅ Total unique document IDs: {len(unique_ids)}")
 
-# --- Clean HTML content ---
-def clean_html(text):
-    if not text:
-        return None
-    soup = BeautifulSoup(text, "html.parser")
+def get_gemini_summary(abstract: str, claims: str) -> str:
+    combined_text = f"""You are a patent summarization expert.
 
-    # Replace all <br> or <br/> tags with newlines
-    for br in soup.find_all("br"):
-        br.replace_with("\n")
+Summarize the following patent based on its abstract and claims in **2-3 concise sentences**. Avoid legal jargon and keep it readable for non-technical audiences.
 
-    # Keep other tags (like <b>, <i>) intact — just get text
-    return soup.get_text().strip()
+Abstract:
+{abstract}
+
+Claims:
+{claims}
+"""
+    try:
+        response = model.generate_content(combined_text)
+        return response.text.strip()
+    except Exception as e:
+        print(f"❌ Gemini summary failed: {e}")
+        return "Summary generation failed."
+
+def clean_html_with_spans(text):
+    """
+    Cleans patent content while preserving:
+    - Paragraph numbers like [0025]
+    - Bold elements (<strong> or <b> tags)
+    - Mathematical formulas
+    - Proper line breaks
+    """
+    if not text or not isinstance(text, str):
+        return text
+
+    # Convert HTML tags to consistent format
+    text = text.replace('<b>', '<strong>').replace('</b>', '</strong>')
+    
+    # Process with BeautifulSoup
+    soup = BeautifulSoup(text, 'html.parser')
+    
+    # Handle paragraph numbers (like [0025])
+    for para in soup.find_all(string=re.compile(r'\[\d+\]')):
+        new_text = re.sub(r'\[(\d+)\]', r'[\1] ', para)
+        para.replace_with(new_text)
+    
+    # Remove unwanted tags but keep content (except strong and math tags)
+    for tag in soup.find_all(['figref', 'table-wrap', 'crossref', 'span']):
+        if not tag.find_parents('math'):  # Don't unwrap spans inside math tags
+            tag.unwrap()
+        
+    # Preserve strong tags for bold formatting (remove attributes only)
+    for strong in soup.find_all('<strong>'):
+        strong.replace_with('')
+    
+    for strong in soup.find_all('</strong>. '):
+        strong.replace_with('')
+
+    # Handle line breaks
+    for br in soup.find_all('br'):
+        br.replace_with('\n')
+
+    # Special handling for math elements
+    for math in soup.find_all('math'):
+        # Create a clean representation of the math content
+        math_id = math.get('id', '')
+        math_num = math.get('num', '')
+        
+        # Extract the actual math content
+        math_content = math.get_text(' ', strip=True)
+        math_content = re.sub(r'\s+', ' ', math_content)  # Normalize whitespace
+        
+        # Create a readable label
+        math_label = f"[Math Formula {math_num}]" if math_num else "[Math Formula]"
+        
+        # Replace with both label and content for better readability
+        math.replace_with(f"{math_label}: {math_content}")
+
+    # Final cleanup of whitespace
+    cleaned_text = str(soup)
+    cleaned_text = re.sub(r'\n\s+\n', '\n\n', cleaned_text)  # Reduce multiple newlines
+    cleaned_text = re.sub(r'(\S)\n(\S)', r'\1 \2', cleaned_text)  # Fix broken words
+    
+    return cleaned_text
 
 # --- Flatten JSON ignoring nulls ---
 def flatten_json(y, parent_key='', sep='.'):
@@ -278,18 +361,20 @@ def fetch_patent_details(doc_id, doc_type):
         return None
 
 # --- Init PDF & DOCX ---
-pdf = FPDF()
-pdf.set_auto_page_break(auto=True, margin=15)
-pdf.add_font('ArialUnicode', '', 'ArialUnicodeMS.ttf', uni=True)
-pdf.set_font('ArialUnicode', '', 10)
-
 doc = Document()
 doc.add_heading('Patent Details Report', 0)
 
 success_count = 0
 fail_count = 0
+current_query = None
+first_patent_in_query = True
 
-for i, (doc_id, doc_type) in enumerate(doc_type_pairs[:5], start=1):
+for i, (doc_id, doc_type, query_name) in enumerate(doc_type_pairs[:5], start=1):
+    # Check if we're starting a new query section
+    if query_name != current_query:
+        current_query = query_name
+        first_patent_in_query = True
+    
     result = fetch_patent_details(doc_id, doc_type)
     if not result:
         fail_count += 1
@@ -299,39 +384,117 @@ for i, (doc_id, doc_type) in enumerate(doc_type_pairs[:5], start=1):
     # Clean known HTML fields before flattening
     for html_key in ["abstractHtml", "descriptionHtml", "claimsHtml", "backgroundTextHtml"]:
         if html_key in result:
-            result[html_key] = clean_html(result[html_key])
+            result[html_key] = clean_html_with_spans(result[html_key])
 
     flat_data = flatten_json(result)
     success_count += 1
     patent_number = flat_data.get("documentId", "")
     title = flat_data.get("inventionTitle", "Patent Details")
 
-    # --- PDF Output ---
-    try:
-        pdf.add_page()
-        pdf.set_font('ArialUnicode', '', 12)
-        pdf.cell(0, 10, f"Patent Number: {patent_number}", ln=True)
-        pdf.set_font('ArialUnicode', '', 10)
-        for k, v in flat_data.items():
-            pdf.multi_cell(0, 6, f"{k}: {v}")
-        pdf.multi_cell(0, 6, "-" * 100)
-    except Exception as e:
-        print(f"❌ PDF generation failed for {doc_id}: {e}")
-
     # --- DOCX Output ---
     try:
-        doc.add_heading(title, level=1)
+        # Add a page break before each new patent
+        if not first_patent_in_query:
+            doc.add_page_break()
+
+        # Add query header
+        query_para = doc.add_paragraph(f"QUERY: {current_query.upper()}", style='Heading 1')
+        for run in query_para.runs:
+            run.font.name = 'Aptos Narrow'
+            run.font.size = Pt(16)
+            run.bold = True
+                
+        # Patent number with HTML span handling
+        patent_number_clean = clean_html_with_spans(patent_number)
+        title_para = doc.add_paragraph()
+        title_label = title_para.add_run("PATENT NUMBER: ")
+        title_label.font.name = 'Aptos Narrow'
+        title_label.font.size = Pt(14)
+        title_label.bold = True
+        
+        # Add patent number with preserved formatting but without span attributes
+        soup = BeautifulSoup(patent_number_clean, 'html.parser')
+        for content in soup.contents:
+            if content.name == 'span':
+                text_run = title_para.add_run(content.get_text())
+                text_run.font.name = 'Aptos Narrow'
+                text_run.font.size = Pt(12)
+            else:
+                text_run = title_para.add_run(str(content))
+                text_run.font.name = 'Aptos Narrow'
+                text_run.font.size = Pt(12)
+        
+        # Patent title with HTML span handling
+        title_clean = clean_html_with_spans(title)
+        title_para = doc.add_paragraph()
+        title_label = title_para.add_run("TITLE: ")
+        title_label.font.name = 'Aptos Narrow'
+        title_label.font.size = Pt(14)
+        title_label.bold = True
+        
+        soup = BeautifulSoup(title_clean, 'html.parser')
+        for content in soup.contents:
+            if content.name == 'span':
+                text_run = title_para.add_run(content.get_text())
+                text_run.font.name = 'Aptos Narrow'
+                text_run.font.size = Pt(12)
+            else:
+                text_run = title_para.add_run(str(content))
+                text_run.font.name = 'Aptos Narrow'
+                text_run.font.size = Pt(12)
+        
+        # Patent details with HTML span handling
         for k, v in flat_data.items():
-            paragraph = doc.add_paragraph()
-            run_label = paragraph.add_run(f"{k}: ")
-            run_label.bold = True
-            run_label.font.size = Pt(12)
-            run_value = paragraph.add_run(str(v))
-            run_value.font.size = Pt(12)
+            if k in ["documentId", "inventionTitle"]:
+                continue
+                
+            para = doc.add_paragraph()
+            
+            # Label in UPPERCASE, Aptos Narrow 14pt Bold
+            label = para.add_run(f"{k.upper()}: ")
+            label.font.name = 'Aptos Narrow'
+            label.font.size = Pt(14)
+            label.bold = True
+            
+            # Value with HTML span handling
+            if isinstance(v, str):
+                v_clean = clean_html_with_spans(v)
+                soup = BeautifulSoup(v_clean, 'html.parser')
+                for content in soup.contents:
+                    if content.name == 'span':
+                        text_run = para.add_run(content.get_text())
+                        text_run.font.name = 'Aptos Narrow'
+                        text_run.font.size = Pt(12)
+                    else:
+                        text_run = para.add_run(str(content))
+                        text_run.font.name = 'Aptos Narrow'
+                        text_run.font.size = Pt(12)
+            else:
+                value = para.add_run(str(v))
+                value.font.name = 'Aptos Narrow'
+                value.font.size = Pt(12)
+        
+        abstract_text = clean_html_with_spans(result.get("abstractHtml", ""))
+        claims_text = clean_html_with_spans(result.get("claimsHtml", ""))
+        summary = get_gemini_summary(abstract_text, claims_text)
+
+        summary_para = doc.add_paragraph()
+        summary_label = summary_para.add_run("GEMINI SUMMARY: ")
+        summary_label.font.name = 'Aptos Narrow'
+        summary_label.font.size = Pt(14)
+        summary_label.bold = True
+
+        summary_text = summary_para.add_run(summary)
+        summary_text.font.name = 'Aptos Narrow'
+        summary_text.font.size = Pt(12)
+
+        # Add separator
         doc.add_paragraph("-" * 100)
+        
     except Exception as e:
         print(f"❌ DOCX generation failed for {doc_id}: {e}")
-
+    
+    first_patent_in_query = False
     print(f"✅ Success #{success_count}: {doc_id} ({doc_type})")
     time.sleep(1)
 
@@ -340,76 +503,73 @@ timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
 output_folder = "OCX_InfoSyncEngine"
 os.makedirs(output_folder, exist_ok=True)
 
-pdf_path = os.path.join(output_folder, f"OCX_InfoSyncEngine_{timestamp}.pdf")
 docx_path = os.path.join(output_folder, f"OCX_InfoSyncEngine_{timestamp}.docx")
+pdf_path = os.path.join(output_folder, f"OCX_InfoSyncEngine_{timestamp}.pdf")
 
-pdf.output(pdf_path)
+# Save DOCX
 doc.save(docx_path)
+print(f"✅ DOCX file saved: {docx_path}")
+
+# Convert to PDF
+try:
+    convert(docx_path, pdf_path)
+    print(f"✅ PDF file saved: {pdf_path}")
+except Exception as e:
+    print(f"❌ Failed to convert to PDF: {e}")
 
 print("\n📊 Fetch Summary:")
 print(f"✅ Total Success: {success_count}")
 print(f"❌ Total Failed : {fail_count}")
-print(f"\n✅ Combined PDF saved as: {pdf_path}")
-print(f"✅ Combined DOCX saved as: {docx_path}")
 
-# --- Google Drive Upload Setup ---
-# gauth = GoogleAuth()
-# gauth.LoadCredentialsFile("credentials.json")
+# -- Setup --
+SERVICE_ACCOUNT_FILE = 'service_account.json'
+SCOPES = ['https://www.googleapis.com/auth/drive.file']
+FOLDER_NAME = "OCX_InfoSyncEngine"
 
-# if gauth.credentials is None:
-#     # First time authorization
-#     gauth.LocalWebserverAuth()
-# elif gauth.access_token_expired:
-#     # Refresh token if expired
-#     gauth.Refresh()
-# else:
-#     # Already authorized
-#     gauth.Authorize()
+credentials = service_account.Credentials.from_service_account_file(
+    SERVICE_ACCOUNT_FILE, scopes=SCOPES
+)
+drive_service = build('drive', 'v3', credentials=credentials)
 
-# # Save credentials for future runs
-# gauth.SaveCredentialsFile("credentials.json")
+# --- Step 1: Get or create folder ---
+def get_or_create_folder(name):
+    # Search for folder
+    query = f"name = '{name}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+    results = drive_service.files().list(q=query, fields="files(id, name)").execute()
+    items = results.get('files', [])
 
-# # Create Drive instance AFTER authentication
-# drive = GoogleDrive(gauth)
+    if items:
+        folder_id = items[0]['id']
+        print(f"📂 Folder found: {name} (ID: {folder_id})")
+    else:
+        # Create folder
+        file_metadata = {
+            'name': name,
+            'mimeType': 'application/vnd.google-apps.folder'
+        }
+        file = drive_service.files().create(body=file_metadata, fields='id').execute()
+        folder_id = file.get('id')
+        print(f"🆕 Folder created: {name} (ID: {folder_id})")
+    
+    return folder_id
 
-# # --- Step 1: Check if folder already exists ---
-# folder_name = "OCX_InfoSyncEngine"
-# folder_id = None
+# --- Step 2: Upload file ---
+def upload_file(file_path, parent_folder_id):
+    file_metadata = {
+        'name': os.path.basename(file_path),
+        'parents': [parent_folder_id]
+    }
+    media = MediaFileUpload(file_path, resumable=True)
+    uploaded_file = drive_service.files().create(
+        body=file_metadata,
+        media_body=media,
+        fields='id'
+    ).execute()
+    print(f"☁️ Uploaded: {file_path} → Drive ID: {uploaded_file['id']}")
 
-# print(f"🔍 Searching for folder: {folder_name}")
+# --- Call from your existing script ---
+folder_id = get_or_create_folder(FOLDER_NAME)
 
-# file_list = drive.ListFile({
-#     'q': f"title='{folder_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
-# }).GetList()
-
-# if file_list:
-#     folder_id = file_list[0]['id']
-#     print(f"📂 Folder already exists: {folder_name} (ID: {folder_id})")
-# else:
-#     # --- Step 2: Create folder ---
-#     print(f"📁 Creating folder: {folder_name}")
-#     folder_metadata = {
-#         'title': folder_name,
-#         'mimeType': 'application/vnd.google-apps.folder'
-#     }
-#     folder = drive.CreateFile(folder_metadata)
-#     folder.Upload()
-#     folder_id = folder['id']
-#     print(f"✅ Folder created with ID: {folder_id}")
-
-# # --- Step 3: Upload files into the folder ---
-# print(f"🚀 Uploading files to folder: {folder_name}")
-
-# for filename in os.listdir(output_folder):
-#     filepath = os.path.join(output_folder, filename)
-#     if os.path.isfile(filepath):
-#         try:
-#             file_drive = drive.CreateFile({
-#                 'title': filename,
-#                 'parents': [{'id': folder_id}]
-#             })
-#             file_drive.SetContentFile(filepath)
-#             file_drive.Upload()
-#             print(f"✅ Uploaded: {filename}")
-#         except Exception as e:
-#             print(f"❌ Failed to upload {filename}: {e}")
+# Replace these with your actual file paths
+upload_file(docx_path, folder_id)
+upload_file(pdf_path, folder_id)
