@@ -53,4 +53,16 @@ python main.py
 
 ---
 
+## Support My Work
+If you find this script useful and would like to support its development, any contribution is greatly appreciated! Your support helps in maintaining and improving this tool.
+Here are a few ways you can contribute financially:
+
+- **Patreon**: [Link to your Patreon page]
+- **Buy Me a Coffee**: [Link to your Buy Me a Coffee page]
+- **PayPal**: [Link to your PayPal.Me or direct PayPal donation link]
+
+Thank you for your support!
+
+---
+
 This version is shorter, removes technical details, and focuses on what the user actually needs to know.
