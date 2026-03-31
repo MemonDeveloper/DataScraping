@@ -61,6 +61,7 @@ Support via Crypto (USDT Only):
 You can support me using USDT on the following networks:
 
 - **USDT (TRC20)**: THqVrt9E7B9fRd8GZvAXuqBTtUkZSCuNNU
+- **USDT (ERC20/BNB)**: 0xfe7f29b963566a982bbea34ae7fd79ba7336d4c1
 
 ⚠️ Please make sure to send using the correct network. Sending funds on the wrong network may result in loss of funds.
 
