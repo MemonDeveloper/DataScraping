@@ -3,7 +3,7 @@
 A Python script that extracts lawyer/professional data from `nossaman.com` and saves it to Excel.
 
 ## What it does
-- Scrapes names, titles, practice areas, office locations, emails, phone numbers, fax, and mobile numbers
+- Scrapes comprehensive professional data including personal details, contact information, and career information
 - Outputs data to an Excel file (`professionals_data.xlsx`)
 
 ## How to use
@@ -19,7 +19,33 @@ python main.py
 ```
 
 ## Output columns
-- S.No | Name | Title | Service | Office | Email | Phone | Tax | Mobile
+
+| Column | Description |
+|--------|-------------|
+| Name | Full name |
+| Given Name | First name |
+| Middle Name | Middle name |
+| Family Name | Last name |
+| Title | Professional title |
+| Office | Office location |
+| Email | Email address |
+| Phone | Phone number |
+| Mobile | Mobile number |
+| Fax | Fax number |
+| LinkedIn | LinkedIn profile URL |
+| Image | Profile image URL |
+| Practice | Practice areas |
+| Industry | Industries served |
+| Education | Educational background |
+| Admission | Bar admissions |
+| Overview | Biography overview |
+| Experience | Professional experience |
+| Other Experience | Additional experience |
+| Publications | Publications |
+| Events | Events participated |
+| News | News mentions |
+| Podcasts | Podcast appearances |
+| Honors | Awards and honors |
 
 ## Notes
 - Script is built for the current structure of `nossaman.com` - may break if the website changes
