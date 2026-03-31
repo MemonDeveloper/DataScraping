@@ -57,9 +57,12 @@ python main.py
 If you find this script useful and would like to support its development, any contribution is greatly appreciated! Your support helps in maintaining and improving this tool.
 Here are a few ways you can contribute financially:
 
-- **Patreon**: [Link to your Patreon page]
-- **Buy Me a Coffee**: [Link to your Buy Me a Coffee page]
-- **PayPal**: [Link to your PayPal.Me or direct PayPal donation link]
+Support via Crypto (USDT Only):
+You can support me using USDT on the following networks:
+
+- **USDT (TRC20)**: THqVrt9E7B9fRd8GZvAXuqBTtUkZSCuNNU
+
+⚠️ Please make sure to send using the correct network. Sending funds on the wrong network may result in loss of funds.
 
 Thank you for your support!
 
