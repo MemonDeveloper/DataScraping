@@ -30,9 +30,9 @@ headers = {
 
 all_rows = []
 skip = 0
-take = 10000   # 👈 change this as needed
-P_FROM_DATE = "03/01/2026"   # 👈 change this as needed
-P_TO_DATE = yesterday.strftime("%d/%m/%Y")   # 👈 change this as needed
+take = 10000   # change this as needed
+P_FROM_DATE = "03/01/2026"   # change this as needed
+P_TO_DATE = yesterday.strftime("%d/%m/%Y")   # change this as needed
 
 while True:
     transactions_payload = {
