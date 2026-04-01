@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 
 # ================= ENDPOINT LIST =================
 endpoints = [
+    "brokers",
     "transactions",
     "rents",
     "projects",
@@ -12,7 +13,6 @@ endpoints = [
     "lands",
     "buildings",
     "units",
-    "brokers",
     "developers"
 ]
 
@@ -55,9 +55,9 @@ while True:
         'P_FROM_DATE': P_FROM_DATE,
         'P_IS_FREE_HOLD': '',
         'P_PROP_TYPE_ID': '',
-        'P_SKIP': str(take),
+        'P_SKIP': str(skip),
         'P_SORT': 'REGISTRATION_DATE_ASC',
-        'P_TAKE': str(skip),
+        'P_TAKE': str(take),
         'P_TO_DATE': P_TO_DATE,
         'P_USAGE_ID': '',
         'P_VERSION': '',
@@ -69,9 +69,9 @@ while True:
         'P_FROM_DATE': P_FROM_DATE,
         'P_PRJ_STATUS': '',
         'P_PRJ_TYPE_ID': '',
-        'P_SKIP': str(take),
+        'P_SKIP': str(skip),
         'P_SORT': 'PROJECT_NUMBER_ASC',
-        'P_TAKE': str(skip),
+        'P_TAKE': str(take),
         'P_TO_DATE': P_TO_DATE,
         'P_ZONE_ID': '',
     }
@@ -80,9 +80,9 @@ while True:
         'P_AREA_ID': '',
         'P_FROM_DATE': P_FROM_DATE,
         'P_PROP_TYPE_ID': '',
-        'P_SKIP': str(take),
+        'P_SKIP': str(skip),
         'P_SORT': 'PROPERTY_TOTAL_VALUE_ASC',
-        'P_TAKE': str(skip),
+        'P_TAKE': str(take),
         'P_TO_DATE': P_TO_DATE,
     }
 
@@ -93,9 +93,9 @@ while True:
         'P_MASTER_PROJECT': '',
         'P_PROJECT': '',
         'P_PROP_SB_TYPE_ID': '',
-        'P_SKIP': str(take),
+        'P_SKIP': str(skip),
         'P_SORT': 'LAND_TYPE_EN_ASC',
-        'P_TAKE': str(skip),
+        'P_TAKE': str(take),
         'P_ZONE_ID': '',
     }
 
@@ -105,9 +105,9 @@ while True:
         'P_IS_FREE_HOLD': '',
         'P_IS_LEASE_HOLD': '',
         'P_IS_OFFPLAN': '',
-        'P_SKIP': str(take),
+        'P_SKIP': str(skip),
         'P_SORT': 'PROP_SUB_TYPE_EN_ASC',
-        'P_TAKE': str(skip),
+        'P_TAKE': str(take),
         'P_TO_DATE': P_TO_DATE,
         'P_ZONE_ID': '',
     }
@@ -118,31 +118,31 @@ while True:
         'P_IS_LEASE_HOLD': '',
         'P_AREA_ID': '',
         'P_ZONE_ID': '',
-        'P_TAKE': str(skip),
-        'P_SKIP': str(take),
+        'P_TAKE': str(take),
+        'P_SKIP': str(skip),
         'P_SORT': 'UNIT_NUMBER_ASC',
     }
 
     brokers_payload = {
         "P_GENDER": "",
-        "P_TAKE": "100",
-        "P_SKIP": "0",
-        "P_SORT": "BROKER_NUMBER_ASC"
+        "P_SKIP": str(skip),
+        "P_SORT": "BROKER_NUMBER_ASC",
+        "P_TAKE": str(take)
     }
 
     developers_payload = {
         'P_FROM_DATE': P_FROM_DATE,
         'P_NAME': '',
-        'P_SKIP': str(take),
+        'P_SKIP': str(skip),
         'P_SORT': 'DEVELOPER_NUMBER_ASC',
-        'P_TAKE': str(skip),
+        'P_TAKE': str(take),
         'P_TO_DATE': P_TO_DATE,
     }
 
     conn.request(
         'POST',
         f'/open-data/{endpoints[0]}',
-        body=json.dumps(transactions_payload),
+        body=json.dumps(brokers_payload),
         headers=headers
     )
 
