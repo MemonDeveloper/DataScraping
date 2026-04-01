@@ -68,5 +68,3 @@ You can support me using USDT on the following networks:
 Thank you for your support!
 
 ---
-
-This version is shorter, removes technical details, and focuses on what the user actually needs to know.
