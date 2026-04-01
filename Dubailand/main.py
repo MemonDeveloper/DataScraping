@@ -172,4 +172,4 @@ if all_rows:
         writer.writeheader()
         writer.writerows(all_rows)
 
-print(f"Done ✔ Total rows: {len(all_rows)}")
+    print(f"Done ✔ Total rows: {len(all_rows)}")
