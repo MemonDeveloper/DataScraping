@@ -90,13 +90,12 @@ def get_payload(endpoint, skip):
 # ================= MAIN LOOP =================
 for endpoint in endpoints:
     print(f"Starting endpoint: {endpoint.upper()}")
-    
+
     all_rows = []
     skip = 0
 
     while True:
         payload = get_payload(endpoint, skip)
-
         try:
             conn.request(
                 'POST',
