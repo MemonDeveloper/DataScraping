@@ -112,7 +112,7 @@ for endpoint in endpoints:
 
             data = json.loads(response.read().decode('utf-8'))
             rows = data.get("response", {}).get("result", [])
-            print(f"Fetched {len(rows)} rows | skip={skip}")
+            print(f"Fetched {len(rows)} rows")
 
             if not rows:
                 print(f"No more rows. Moving to next endpoint.")
