@@ -7,7 +7,7 @@ import json
 from openai import OpenAI
 
 # === OpenAI client ===
-client = OpenAI(api_key="")  # <-- apna API key yahan daalein
+client = OpenAI(api_key="")
 
 # === Safe JSON loader ===
 def safe_json_loads(content):
